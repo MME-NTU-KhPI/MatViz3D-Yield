@@ -1,0 +1,119 @@
+# Defaults for every run. Case files override what they need.
+#
+# Nothing here is problem-specific: a case that omits a key gets the value
+# below, and a key that appears in no case file still has a defined meaning.
+
+seed: 0
+
+report:
+  lang: en          # en | uk -- console output and summary.md only.
+                    # Figures are always English, by design.
+
+dataset:
+  analysis: SCHMID
+  select_step: max_macro_sz
+  material_override: {}
+  plots:
+    preset: ingest_diagnostics
+
+field:
+  source: analytic
+  convention: mandel_xy_last
+  frame: global
+  units:
+    stress: MPa
+    length: mm
+  grid:
+    resolution: 400
+
+model:
+  path: auto
+  convention: mandel_xy_last
+  deviatoric: true      # Remove hydrostatic pressure. Set false for
+                        # pressure-sensitive materials.
+  normalise: false      # Scale the cloud to unit RMS radius. Needed for a
+                        # neural surface; harmless but pointless for KDE.
+
+  methods: [kde_ray]
+  primary: null         # Defaults to the first entry of methods.
+
+  kde_ray:
+    localized: true     # Angle-weighted variant. false gives the plain
+                        # global projection kept as a textbook reference.
+    power: 8.0          # Shorthand for {mode: manual, value: 8.0}.
+    min_eff_n: 15.0
+
+  kde_slice:
+    mode: polar         # polar | global | adapted
+    kappa: 20.0
+    tau_floor: 2.0
+    top_k: 4096
+    batch_size: 400
+    censor: false
+    min_eff_n: 15.0
+
+  analytic:
+    mode: from_dataset  # from_dataset | manual | off
+    mean: null
+    std: null
+
+plots:
+  preset: paper
+  include: []
+  exclude: []
+  formats: [png, svg]   # SVG is always written alongside the raster.
+  dpi: 300              # Publication floor; lower values are rejected.
+
+view:
+  reductions: []        # 2D fields need none. 3D fields are reduced here.
+
+probes:
+  paths: []
+  points: []
+
+compare:
+  p_crit: 0.5           # Active only when two or more methods are run.
+  reference_locus: {}
+
+export:
+  vtk: false
+  results_npz: true
+
+# Figure sets. Names are resolved by the plot registry, which also filters
+# out anything incompatible with the field topology or the methods that ran.
+plot_presets:
+  # Mode A -- dataset analysis.
+  ingest_minimal:
+    - yield_components
+    - stress_space
+  ingest_diagnostics:
+    - yield_components
+    - stress_space
+    - strain_space
+    - stress_pairs_2d
+    - strain_pairs_2d
+    - projected_kde
+    - histograms
+    - eigen_tracking
+    - schmid_factors
+
+  # Mode B -- yield probability.
+  minimal:
+    - yield_zone
+    - kde_probability
+  paper:
+    - yield_zone
+    - kde_probability
+    - three_methods
+    - probability_profile
+    - yield_locus_polar
+    - pi_plane_density
+  diagnostics:
+    - coverage_map
+    - eff_n_map
+    - uncertainty_band
+    - weight_profile
+    - calibration_curve
+    - bandwidth_sensitivity
+    - dataset_3d_scatter
+  all: ["*"]

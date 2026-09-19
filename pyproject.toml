@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mvyield"
+description = "Data-driven yield probability from microstructure datasets"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["yield-surface", "polycrystal", "microstructure", "kde", "matviz3d"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dynamic = ["version"]
+
+# The core is what 'mvy run' needs: read a config, rebuild a model, evaluate
+# a field, draw the figures. Nothing here opens a dataset or trains anything.
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+ingest = ["h5py>=3.9", "pandas>=2.0"]
+vtk = ["meshio>=5.3"]
+pinn = ["torch>=2.0"]
+
+[project.scripts]
+mvy = "mvyield.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/MME-NTU-KhPI/matviz3d-yield"
+MatViz3D = "https://github.com/MME-NTU-KhPI/MatViz3D"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# One source of truth for the version: the module, not this file.
+[tool.setuptools.dynamic]
+version = { attr = "mvyield.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Slow tests run a full dataset pass and take minutes. Deselected by
+# default; run them with: pytest -m slow
+addopts = "-m 'not slow'"
+markers = ["slow: a full pass over a real dataset, minutes rather than seconds"]

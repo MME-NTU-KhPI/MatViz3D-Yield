@@ -1,0 +1,82 @@
+case: ansys
+name: wire_ansys
+
+# Same dataset as the Kirsch case: same material, different problem.
+# Drop this whole section to run in mode B, against an already built model.
+dataset:
+  source: data/datasets/synth_abl_stress.hdf5
+  analysis: SCHMID
+
+# --- Stress field exported from ANSYS ---------------------------------------
+# Recommended export (MAPDL):
+#   /POST1
+#   SET,LAST
+#   NSEL,ALL
+#   /OUTPUT,wire_nodal_stress,csv
+#   PRNSOL,S,COMP        ! NODE, SX, SY, SZ, SXY, SYZ, SXZ
+#   /OUTPUT
+# PRNSOL does not write coordinates; add NLIST, or export from Mechanical
+# (right-click the stress result -> Export -> Text File), which includes them.
+#
+# ANSYS writes engineering shear components with no sqrt(2) factor, in the
+# SXY, SYZ, SXZ order. The adapter applies the Mandel factor exactly once,
+# on the way in; nothing downstream rescales.
+field:
+  source: ansys
+  path: data/ansys/wire_nodal_stress.csv
+  format: prnsol_csv            # prnsol_csv | mechanical_txt | rst | dpf
+  convention: mandel_xy_first
+  units:
+    stress: Pa                  # converted to MPa on import
+    length: m
+  columns:
+    node: NODE
+    xyz: [X, Y, Z]
+    stress: [SX, SY, SZ, SXY, SYZ, SXZ]
+  frame: global                 # must match the frame the dataset was built in
+
+# --- 3D field reduced to 2D for plotting ------------------------------------
+# The scalar plots (histograms, locus, pi-plane) work on the full 3D field;
+# only the field maps need a reduction. Each entry produces its own set of
+# figures, suffixed with its name.
+view:
+  reductions:
+    - {kind: slice, plane: z, value: 0.0, tol: 1.0e-4, name: midspan}
+    - {kind: projection, axis: z, reduce: max, name: max_along_z}
+
+model:
+  path: auto
+  deviatoric: true
+  methods: [kde_ray]            # ray only; the slice is not computed
+  primary: kde_ray
+  kde_ray:
+    localized: true
+    power: 8.0
+    min_eff_n: 15.0
+
+probes:
+  paths:
+    - name: radial
+      kind: line
+      from: [0.0, 0.0, 0.0]
+      to: [2.5, 0.0, 0.0]
+      n: 200
+    - name: surface_axial
+      kind: line
+      from: [2.5, 0.0, -50.0]
+      to: [2.5, 0.0, 50.0]
+      n: 300
+  points:
+    - name: hotspot
+      kind: argmax
+      of: P_primary
+
+plots:
+  preset: minimal
+  formats: [png, svg]
+  dpi: 300
+
+# Real 3D inspection belongs in ParaView: isosurfaces of P(G) and arbitrary
+# cuts are far better there than anything matplotlib can do in this space.
+export:
+  vtk: true

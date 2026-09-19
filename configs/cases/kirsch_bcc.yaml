@@ -1,0 +1,89 @@
+case: kirsch
+name: kirsch_bcc
+
+# --- Input 1: the dataset, which is also the material -----------------------
+# Crystal structure, CRSS and the rest were fixed when the dataset was
+# generated. They are read from the HDF5 attributes; material_override only
+# fills what the file does not carry.
+dataset:
+  source: data/datasets/synth_abl_stress.hdf5
+  analysis: SCHMID
+  select_step: max_macro_sz
+  material_override: {}
+  plots:
+    preset: ingest_diagnostics
+
+# --- Input 2: the stress field ----------------------------------------------
+field:
+  source: analytic
+  sigma_applied: 150.0          # MPa, remote tension
+  hole_radius:
+    auto: true
+    fraction: 0.15              # of the domain half-width
+    fallback: 1.0
+  domain_from: dataset          # take the extent from the same HDF5
+  grid:
+    resolution: 400
+
+# --- Yield model ------------------------------------------------------------
+model:
+  path: auto
+  deviatoric: true
+  methods: [analytic, kde_ray, kde_slice]
+  primary: kde_slice
+
+  kde_ray:
+    localized: true
+    power: 8.0                  # manual: chosen from the sweep report.
+                                # Switch to the block below once a criterion
+                                # for the ray weighting exists:
+                                # power: {mode: auto, objective: cv_loglik,
+                                #         grid: [2, 4, 8, 16, 32], refine: true}
+    min_eff_n: 15.0
+
+  kde_slice:
+    mode: polar
+    kappa: {mode: auto, objective: cv_loglik, grid: [5, 10, 20, 50, 100], refine: true}
+    tau_floor: 2.0
+    top_k: 4096
+    batch_size: 400
+    censor: false
+    min_eff_n: 15.0
+
+  analytic:
+    mode: from_dataset          # mean and std estimated from the cloud
+
+# --- Sampling paths for profile plots ---------------------------------------
+# Coordinates are in hole radii for the ray kind, so the profile plot needs
+# no knowledge of this particular geometry.
+probes:
+  paths:
+    - name: ligament
+      kind: ray
+      angle_deg: 90.0
+      r_from: 1.0
+      r_to: 4.0
+      units: hole_radii
+      n: 200
+    - name: circumferential
+      kind: arc
+      center: [0.0, 0.0, 0.0]
+      radius: 1.0
+      plane: xy
+      n: 180
+  points:
+    - name: hotspot
+      kind: argmax
+      of: P_primary
+
+plots:
+  preset: paper
+  formats: [png, svg]
+  dpi: 300
+
+compare:
+  p_crit: 0.5
+  reference_locus:
+    "X uniaxial": 312.9
+    "Y uniaxial": 314.7
+    "XY shear": 179.6
